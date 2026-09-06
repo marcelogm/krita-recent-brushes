@@ -20,6 +20,11 @@ chooser.
 - *Clear* empties the list.
 - The history lives in `~/.local/share/krita/recent_brushes_history.json`.
 
+Krita only started emitting a signal when the brush preset changes in 6.0.3.
+To keep working on 5.2 and earlier 6.0 releases, the plugin polls the active
+view a few times per second while the docker is visible. Switching to the
+signal is planned once 6.0.3 is common.
+
 ## Install
 
 In Krita, go to *Tools > Scripts > Import Python Plugin from Web*, paste
@@ -36,7 +41,8 @@ Python Plugin Manager*, restart Krita, and open the docker from
 
 The plugin lives in `pykrita/`, mirroring Krita's own plugin folder. The
 tests run outside Krita against a fake `krita` module and need `PyQt6` (or
-`PyQt5`):
+`PyQt5`). CI runs them on Python 3.10 (bundled with Krita 5.2), 3.13 (bundled
+with Krita 6.0) and 3.14, and fails below 95% coverage:
 
 ```
 python -m venv .venv

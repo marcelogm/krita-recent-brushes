@@ -488,6 +488,7 @@ def test_buttons_ask_krita_for_theme_icons_before_falling_back(env):
 
     assert "edit-clear" in env.krita.icons_requested
     assert "novisible" in env.krita.icons_requested
+    assert "configure" in env.krita.icons_requested
 
 
 def test_clicking_clear_button_empties_grid_and_icon_cache(env):
@@ -503,3 +504,35 @@ def test_clicking_clear_button_empties_grid_and_icon_cache(env):
     assert docker._model.rowCount() == 0
     assert docker._icons == {}
     assert env.tracker_module.History.load(str(env.path)).names(time.time()) == []
+
+
+def test_settings_button_opens_a_menu_containing_the_limit_spinner(env):
+    docker = env.docker_module.RecentBrushesDocker()
+    button = docker._settings_button
+
+    assert isinstance(button, env.docker_module.QtWidgets.QToolButton)
+    assert button.toolTip() == "Settings"
+    assert button.popupMode() == env.docker_module.QtWidgets.QToolButton.ToolButtonPopupMode.InstantPopup
+    menu = button.menu()
+    assert menu is not None
+    actions = menu.actions()
+    assert len(actions) == 1
+    assert isinstance(actions[0], env.docker_module.QtWidgets.QWidgetAction)
+    assert docker._limit_box in actions[0].defaultWidget().findChildren(
+        env.docker_module.QtWidgets.QSpinBox)
+
+
+def test_spinner_inside_the_menu_still_sets_the_limit(env):
+    history = env.tracker_module.History(limit=5)
+    history.touch("a", 1.0)
+    history.touch("b", 2.0)
+    history.save(str(env.path))
+    env.krita.presets = {name: FakePreset(name) for name in ("a", "b")}
+    docker = env.docker_module.RecentBrushesDocker()
+    docker._settings_button.menu().show()
+
+    docker._limit_box.setValue(1)
+
+    assert _model_names(env, docker) == ["b"]
+    assert env.tracker_module.History.load(str(env.path)).limit == 1
+    docker._settings_button.menu().hide()

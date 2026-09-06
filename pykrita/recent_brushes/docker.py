@@ -10,6 +10,7 @@ LIMIT_LABEL = "Max:"
 CLEAR_TOOLTIP = "Clear history"
 IGNORED_TOOLTIP = "Ignored brushes ({})…"
 SETTINGS_TOOLTIP = "Settings"
+NO_MENU_ARROW = "QToolButton::menu-indicator { image: none; }"
 PRESET_RESOURCE_TYPE = "preset"
 ICON_SIZE = 48
 NAME_ROLE = QtCore.Qt.ItemDataRole.UserRole
@@ -37,6 +38,7 @@ class RecentBrushesDocker(DockWidget):
             IGNORED_ICONS, IGNORED_FALLBACK, IGNORED_TOOLTIP.format(0), self._on_show_ignored)
         self._clear_button = self._build_tool_button(
             CLEAR_ICONS, CLEAR_FALLBACK, CLEAR_TOOLTIP, self._on_clear)
+        self._settings_button = self._build_settings_button()
         self._model = QtGui.QStandardItemModel()
         self._list = self._build_grid()
         self.setWidget(self._build_body())
@@ -88,6 +90,27 @@ class RecentBrushesDocker(DockWidget):
                 return icon
         return self.style().standardIcon(fallback)
 
+    def _build_settings_button(self):
+        button = QtWidgets.QToolButton()
+        button.setAutoRaise(True)
+        button.setIcon(self._theme_icon(SETTINGS_ICONS, SETTINGS_FALLBACK))
+        button.setToolTip(SETTINGS_TOOLTIP)
+        button.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.InstantPopup)
+        button.setStyleSheet(NO_MENU_ARROW)
+        button.setMenu(self._build_settings_menu())
+        return button
+
+    def _build_settings_menu(self):
+        row = QtWidgets.QWidget()
+        row_layout = QtWidgets.QHBoxLayout(row)
+        row_layout.addWidget(QtWidgets.QLabel(LIMIT_LABEL))
+        row_layout.addWidget(self._limit_box)
+        action = QtWidgets.QWidgetAction(self)
+        action.setDefaultWidget(row)
+        menu = QtWidgets.QMenu(self)
+        menu.addAction(action)
+        return menu
+
     def _build_grid(self):
         grid = QtWidgets.QListView()
         grid.setViewMode(QtWidgets.QListView.ViewMode.IconMode)
@@ -104,11 +127,10 @@ class RecentBrushesDocker(DockWidget):
 
     def _build_body(self):
         top_row = QtWidgets.QHBoxLayout()
-        top_row.addWidget(QtWidgets.QLabel(LIMIT_LABEL))
-        top_row.addWidget(self._limit_box)
         top_row.addStretch()
         top_row.addWidget(self._ignored_button)
         top_row.addWidget(self._clear_button)
+        top_row.addWidget(self._settings_button)
 
         layout = QtWidgets.QVBoxLayout()
         layout.addLayout(top_row)

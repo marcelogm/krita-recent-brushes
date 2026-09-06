@@ -1,6 +1,6 @@
 from krita import DockWidget, Krita, qDebug
 
-from .history import MAX_LIMIT
+from .history import MAX_LIMIT, SORT_RECENT, SORT_SMART
 from .ignored_dialog import IgnoredBrushesDialog
 from .qt import QtCore, QtGui, QtWidgets
 from .tracker import get_tracker
@@ -15,6 +15,7 @@ PRESET_RESOURCE_TYPE = "preset"
 ICON_SIZE = 48
 NAME_ROLE = QtCore.Qt.ItemDataRole.UserRole
 IGNORE_ACTION_LABEL = 'Ignore "{}"'
+SORT_OPTIONS = ((SORT_SMART, "Smart (Frecency)"), (SORT_RECENT, "Recent"))
 
 CLEAR_ICONS = ("edit-clear", "deletelayer")
 IGNORED_ICONS = ("novisible", "hidden")
@@ -33,6 +34,7 @@ class RecentBrushesDocker(DockWidget):
         self._icons = {}
         self._presets = {}
         self._attached = False
+        self._sort_box = self._build_sort_box()
         self._limit_box = self._build_limit_box()
         self._ignored_button = self._build_tool_button(
             IGNORED_ICONS, IGNORED_FALLBACK, IGNORED_TOOLTIP.format(0))
@@ -75,6 +77,14 @@ class RecentBrushesDocker(DockWidget):
         box.setKeyboardTracking(False)
         box.setValue(self._tracker.limit)
         box.valueChanged.connect(self._on_limit_changed)
+        return box
+
+    def _build_sort_box(self):
+        box = QtWidgets.QComboBox()
+        for value, label in SORT_OPTIONS:
+            box.addItem(label, value)
+        box.setCurrentIndex(box.findData(self._tracker.sort))
+        box.currentIndexChanged.connect(self._on_sort_changed)
         return box
 
     def _build_tool_button(self, icon_names, fallback, tooltip):
@@ -125,6 +135,7 @@ class RecentBrushesDocker(DockWidget):
 
     def _build_body(self):
         top_row = QtWidgets.QHBoxLayout()
+        top_row.addWidget(self._sort_box)
         top_row.addStretch()
         top_row.addWidget(self._ignored_button)
         top_row.addWidget(self._clear_button)
@@ -145,6 +156,7 @@ class RecentBrushesDocker(DockWidget):
     def _rebuild(self):
         self._presets = Krita.instance().resources(PRESET_RESOURCE_TYPE)
         self._mirror_limit_from_tracker()
+        self._mirror_sort_from_tracker()
         self._ignored_button.setToolTip(
             IGNORED_TOOLTIP.format(len(self._tracker.ignored_names())))
         names = self._tracker.names()
@@ -175,6 +187,14 @@ class RecentBrushesDocker(DockWidget):
         self._limit_box.blockSignals(True)
         self._limit_box.setValue(limit)
         self._limit_box.blockSignals(False)
+
+    def _mirror_sort_from_tracker(self):
+        index = self._sort_box.findData(self._tracker.sort)
+        if self._sort_box.currentIndex() == index:
+            return
+        self._sort_box.blockSignals(True)
+        self._sort_box.setCurrentIndex(index)
+        self._sort_box.blockSignals(False)
 
     def _icon_for(self, name, resource):
         if name not in self._icons:
@@ -224,6 +244,9 @@ class RecentBrushesDocker(DockWidget):
 
     def _on_limit_changed(self, value):
         self._tracker.set_limit(value)
+
+    def _on_sort_changed(self, index):
+        self._tracker.set_sort(self._sort_box.itemData(index))
 
     def _on_clear(self):
         self._icons.clear()

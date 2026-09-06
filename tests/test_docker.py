@@ -535,3 +535,81 @@ def test_krita_theme_icon_wins_over_the_qt_fallback(env):
 
     assert docker._clear_button.icon().cacheKey() == themed.cacheKey()
     assert "deletelayer" not in env.krita.icons_requested
+
+
+def _sort_values(docker):
+    return [docker._sort_box.itemData(i) for i in range(docker._sort_box.count())]
+
+
+def test_sort_combo_offers_smart_and_recent_and_starts_at_the_saved_mode(env):
+    history = env.tracker_module.History(sort="recent")
+    history.save(str(env.path))
+
+    docker = env.docker_module.RecentBrushesDocker()
+
+    assert _sort_values(docker) == ["smart", "recent"]
+    assert docker._sort_box.itemText(0) == "Smart (Frecency)"
+    assert docker._sort_box.itemText(1) == "Recent"
+    assert docker._sort_box.currentData() == "recent"
+
+
+def test_changing_the_combo_calls_set_sort_and_reorders_the_grid(env):
+    history = env.tracker_module.History()
+    for _ in range(5):
+        history.touch("often", 10.0)
+    history.touch("lately", 20.0)
+    history.save(str(env.path))
+    env.krita.presets = {name: FakePreset(name) for name in ("often", "lately")}
+    docker = env.docker_module.RecentBrushesDocker()
+    assert _model_names(env, docker) == ["often", "lately"]
+
+    docker._sort_box.setCurrentIndex(docker._sort_box.findData("recent"))
+
+    assert _model_names(env, docker) == ["lately", "often"]
+    assert env.tracker_module.History.load(str(env.path)).sort == "recent"
+
+
+def test_second_docker_picks_up_sort_changed_by_first(env):
+    env.tracker_module.History().save(str(env.path))
+    docker_a = env.docker_module.RecentBrushesDocker()
+    docker_b = env.docker_module.RecentBrushesDocker()
+    assert docker_b._sort_box.currentData() == "smart"
+
+    docker_a._sort_box.setCurrentIndex(docker_a._sort_box.findData("recent"))
+
+    assert docker_b._sort_box.currentData() == "recent"
+
+
+def test_mirroring_the_sort_does_not_write_it_back(env):
+    env.tracker_module.History().save(str(env.path))
+    docker = env.docker_module.RecentBrushesDocker()
+    tracker = env.tracker_module.get_tracker()
+    calls = []
+    original_set_sort = tracker.set_sort
+
+    def spy_set_sort(value):
+        calls.append(value)
+        return original_set_sort(value)
+
+    tracker.set_sort = spy_set_sort
+
+    tracker.set_sort("recent")
+
+    assert calls == ["recent"]
+    assert docker._sort_box.currentData() == "recent"
+
+
+def test_construction_does_not_write_the_sort_back_to_disk(env, monkeypatch):
+    env.tracker_module.History(sort="recent").save(str(env.path))
+    save_calls = []
+    original_save = env.tracker_module.History.save
+
+    def spy_save(self, path):
+        save_calls.append(path)
+        return original_save(self, path)
+
+    monkeypatch.setattr(env.tracker_module.History, "save", spy_save)
+
+    env.docker_module.RecentBrushesDocker()
+
+    assert save_calls == []

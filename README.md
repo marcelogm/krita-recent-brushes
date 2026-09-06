@@ -8,16 +8,18 @@ chooser.
 
 ## What it does
 
-- Shows the presets you have used, ranked by how often and how recently you
-  picked them. The ranking is the same frecency algorithm used by
-  [zoxide](https://github.com/ajeetdsouza/zoxide)
-  ([algorithm](https://github.com/ajeetdsouza/zoxide/wiki/Algorithm)): brushes
-  used in the last hour rank highest, then the last day, then the last week.
+- Shows the presets you have used. The *Smart (Frecency)* mode ranks them by
+  how often and how recently you picked them, using the same frecency
+  algorithm as [zoxide](https://github.com/ajeetdsouza/zoxide)
+  ([algorithm](https://github.com/ajeetdsouza/zoxide/wiki/Algorithm)):
+  brushes used in the last hour rank highest, then the last day, then the
+  last week. The *Recent* mode simply lists the last ones you used.
 - Click a preset to make it the active brush.
-- Set how many presets to keep with the spinner at the top.
+- Pick the mode with the combo at the top left.
+- The gear button opens the settings; *Max* sets how many presets to keep.
 - Right-click a preset to ignore it. Ignored presets never show up again;
-  the *Ignored* button lets you restore them.
-- *Clear* empties the list.
+  the *Ignored brushes* button lets you restore them.
+- The *Clear history* button empties the list.
 - The history lives in `~/.local/share/krita/recent_brushes_history.json`.
 
 Krita only started emitting a signal when the brush preset changes in 6.0.3.

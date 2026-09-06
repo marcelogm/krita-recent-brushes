@@ -1,8 +1,9 @@
 """Records which brush preset is active.
 
-Krita has no signal for "the current preset changed", so while a docker is
-visible this polls the active view a few times per second and touches the
-history whenever the preset name differs from the last one seen.
+Krita only got a `View.currentBrushPresetChanged` signal in 6.0.3. To keep
+working on 5.2 and earlier 6.0 releases, while a docker is visible this polls
+the active view a few times per second and touches the history whenever the
+preset name differs from the last one seen.
 """
 
 import os

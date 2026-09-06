@@ -1,15 +1,10 @@
 import time
 
-try:
-    from PyQt6.QtCore import QPoint, Qt
-    from PyQt6.QtGui import QHideEvent, QImage, QShowEvent
-    from PyQt6.QtTest import QTest
-except ImportError:
-    from PyQt5.QtCore import QPoint, Qt
-    from PyQt5.QtGui import QHideEvent, QImage, QShowEvent
-    from PyQt5.QtTest import QTest
+from fakes import FakePreset, FakeView, FakeWindow, QtCore, QtGui, QtTest
 
-from fakes import FakePreset, FakeView, FakeWindow
+
+def _dialog_names(dialog):
+    return [dialog._list.item(row).text() for row in range(dialog._list.count())]
 
 
 def _model_names(env, docker):
@@ -157,12 +152,12 @@ def test_show_hide_events_attach_detach_once(env):
     tracker.attach_viewer = counting_attach
     tracker.detach_viewer = counting_detach
 
-    docker.showEvent(QShowEvent())
-    docker.showEvent(QShowEvent())
+    docker.showEvent(QtGui.QShowEvent())
+    docker.showEvent(QtGui.QShowEvent())
     assert calls == {"attach": 1, "detach": 0}
 
-    docker.hideEvent(QHideEvent())
-    docker.hideEvent(QHideEvent())
+    docker.hideEvent(QtGui.QHideEvent())
+    docker.hideEvent(QtGui.QHideEvent())
     assert calls == {"attach": 1, "detach": 1}
 
 
@@ -181,8 +176,8 @@ def test_typing_a_bigger_limit_does_not_truncate(env):
     box.show()
     box.setFocus()
     box.selectAll()
-    QTest.keyClicks(box, "50")
-    QTest.keyClick(box, Qt.Key.Key_Enter)
+    QtTest.QTest.keyClicks(box, "50")
+    QtTest.QTest.keyClick(box, QtCore.Qt.Key.Key_Enter)
 
     assert box.value() == 50
     assert _model_names(env, docker) == names
@@ -272,7 +267,7 @@ def test_null_image_preset_gets_fallback_icon(env):
     history = env.tracker_module.History()
     history.touch("Blank", 1.0)
     history.save(str(env.path))
-    env.krita.presets = {"Blank": FakePreset("Blank", image=QImage())}
+    env.krita.presets = {"Blank": FakePreset("Blank", image=QtGui.QImage())}
 
     docker = env.docker_module.RecentBrushesDocker()
 
@@ -307,7 +302,7 @@ def _docker_with(env, *names):
 def test_grid_asks_for_a_custom_context_menu(env):
     docker = _docker_with(env)
 
-    assert docker._list.contextMenuPolicy() == Qt.ContextMenuPolicy.CustomContextMenu
+    assert docker._list.contextMenuPolicy() == QtCore.Qt.ContextMenuPolicy.CustomContextMenu
 
 
 def test_context_menu_offers_to_ignore_the_brush(env):
@@ -335,7 +330,7 @@ def test_right_click_on_empty_space_opens_no_menu(env, monkeypatch):
     built = []
     monkeypatch.setattr(docker, "_context_menu_for", lambda name: built.append(name))
 
-    docker._on_context_menu(QPoint(390, 390))
+    docker._on_context_menu(QtCore.QPoint(390, 390))
 
     assert built == []
 
@@ -407,7 +402,7 @@ def test_dialog_lists_the_ignored_names_alphabetically(env):
 
     dialog = env.dialog_module.IgnoredBrushesDialog(env.tracker_module.get_tracker())
 
-    assert dialog.names() == ["a", "b"]
+    assert _dialog_names(dialog) == ["a", "b"]
 
 
 def test_dialog_restore_button_is_disabled_until_a_name_is_selected(env):
@@ -428,7 +423,7 @@ def test_restoring_from_the_dialog_puts_the_brush_back(env):
 
     dialog._restore_button.click()
 
-    assert dialog.names() == ["b"]
+    assert _dialog_names(dialog) == ["b"]
     assert not dialog._restore_button.isEnabled()
     assert tracker.ignored_names() == ["b"]
     assert docker._ignored_button.text() == "Ignored (1)…"

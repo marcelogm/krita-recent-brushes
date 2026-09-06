@@ -1,62 +1,47 @@
-import os
 import types
-
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
 
-try:
-    from PyQt6.QtWidgets import QApplication, QDockWidget
-except ImportError:
-    from PyQt5.QtWidgets import QApplication, QDockWidget
-
-from fakes import (forget_plugin_modules_imported_outside_monkeypatch,
-                   import_plugin_modules, install_fake_krita, install_plugin_package)
-
-install_plugin_package()
+import fakes
+from fakes import FakeKrita, QtWidgets
+from recent_brushes import docker, ignored_dialog, tracker as tracker_module
 
 
 @pytest.fixture(scope="session")
 def qt_app():
-    return QApplication.instance() or QApplication([])
+    return QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
 
 
 @pytest.fixture
-def tracker(qt_app, tmp_path, monkeypatch):
-    logged = []
-    fake_krita = install_fake_krita(monkeypatch, log_to=logged)
-    module, = import_plugin_modules(monkeypatch, "tracker")
-    path = tmp_path / "history.json"
-    monkeypatch.setattr(module, "history_path", lambda: str(path))
-
-    instance = module.RecentBrushesTracker()
-    instance.krita = fake_krita
-    instance.module = module
-    instance.path = path
-    instance.notifier = fake_krita.notifier_object
-    instance.logged = logged
-    yield instance
-
-    forget_plugin_modules_imported_outside_monkeypatch()
+def krita(qt_app, tmp_path, monkeypatch):
+    """A fresh Krita, an empty log and no tracker singleton for each test."""
+    fake = FakeKrita()
+    monkeypatch.setattr(fakes.current, "krita", fake)
+    monkeypatch.setattr(fakes.current, "logged", [])
+    monkeypatch.setattr(tracker_module, "_TRACKER", None)
+    monkeypatch.setattr(tracker_module, "history_path",
+                        lambda: str(tmp_path / "history.json"))
+    return fake
 
 
 @pytest.fixture
-def env(qt_app, tmp_path, monkeypatch):
-    logged = []
-    fake_krita = install_fake_krita(monkeypatch, log_to=logged, dock_widget=QDockWidget)
-    tracker_module, docker_module, dialog_module = import_plugin_modules(
-        monkeypatch, "tracker", "docker", "ignored_dialog")
-    path = tmp_path / "history.json"
-    monkeypatch.setattr(tracker_module, "history_path", lambda: str(path))
-    tracker_module._TRACKER = None
+def tracker(krita, tmp_path):
+    instance = tracker_module.RecentBrushesTracker()
+    instance.krita = krita
+    instance.module = tracker_module
+    instance.path = tmp_path / "history.json"
+    instance.notifier = krita.notifier_object
+    instance.logged = fakes.current.logged
+    return instance
 
-    yield types.SimpleNamespace(
-        krita=fake_krita,
+
+@pytest.fixture
+def env(krita, tmp_path):
+    return types.SimpleNamespace(
+        krita=krita,
         tracker_module=tracker_module,
-        docker_module=docker_module,
-        dialog_module=dialog_module,
-        path=path,
-        logged=logged,
+        docker_module=docker,
+        dialog_module=ignored_dialog,
+        path=tmp_path / "history.json",
+        logged=fakes.current.logged,
     )
-
-    forget_plugin_modules_imported_outside_monkeypatch()

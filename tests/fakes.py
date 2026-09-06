@@ -1,4 +1,13 @@
-import importlib
+"""Everything needed to run the plugin outside Krita.
+
+Importing this module registers two things in `sys.modules`:
+
+- `recent_brushes`, pointing at `pykrita/recent_brushes` but skipping its
+  `__init__.py`, which registers the plugin with Krita at import time;
+- `krita`, a stub whose `Krita.instance()` returns whatever `FakeKrita` the
+  current test installed through the `krita` fixture.
+"""
+
 import os
 import sys
 import types
@@ -7,23 +16,19 @@ from pathlib import Path
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 try:
-    from PyQt6.QtCore import QObject, pyqtSignal
-    from PyQt6.QtGui import QImage
+    from PyQt6 import QtCore, QtGui, QtTest, QtWidgets
 except ImportError:
-    from PyQt5.QtCore import QObject, pyqtSignal
-    from PyQt5.QtGui import QImage
+    from PyQt5 import QtCore, QtGui, QtTest, QtWidgets
 
-ROOT = Path(__file__).resolve().parent.parent
-PLUGIN_PACKAGE = "recent_brushes"
-PLUGIN_DIR = ROOT / "pykrita" / PLUGIN_PACKAGE
-PLUGIN_MODULES = ("recent_brushes.docker", "recent_brushes.ignored_dialog",
-                  "recent_brushes.tracker", "recent_brushes.history")
+__all__ = ["QtCore", "QtGui", "QtTest", "QtWidgets"]
+
+PLUGIN_DIR = Path(__file__).resolve().parent.parent / "pykrita" / "recent_brushes"
 
 
 class FakePreset:
     def __init__(self, name, image=None):
         self._name = name
-        self._image = QImage() if image is None else image
+        self._image = QtGui.QImage() if image is None else image
 
     def name(self):
         return self._name
@@ -52,11 +57,11 @@ class FakeWindow:
         return self.view
 
 
-class FakeNotifier(QObject):
-    applicationClosing = pyqtSignal()
+class FakeNotifier(QtCore.QObject):
+    applicationClosing = QtCore.pyqtSignal()
 
 
-class FakeKrita(QObject):
+class FakeKrita(QtCore.QObject):
     def __init__(self):
         super().__init__()
         self.window = None
@@ -74,36 +79,23 @@ class FakeKrita(QObject):
         return self.notifier_object
 
 
-def install_fake_krita(monkeypatch, log_to=None, dock_widget=None):
-    krita_stub = types.ModuleType("krita")
-    krita_stub.Extension = type("Extension", (QObject,), {})
-    fake_krita = FakeKrita()
-    krita_stub.Krita = types.SimpleNamespace(instance=lambda: fake_krita)
-    krita_stub.qDebug = (lambda text: None) if log_to is None else log_to.append
-    if dock_widget is not None:
-        krita_stub.DockWidget = dock_widget
-    monkeypatch.setitem(sys.modules, "krita", krita_stub)
-    return fake_krita
+current = types.SimpleNamespace(krita=None, logged=[])
+
+
+def _krita_stub():
+    stub = types.ModuleType("krita")
+    stub.Extension = type("Extension", (QtCore.QObject,), {})
+    stub.DockWidget = QtWidgets.QDockWidget
+    stub.Krita = types.SimpleNamespace(instance=lambda: current.krita)
+    stub.qDebug = lambda text: current.logged.append(text)
+    return stub
 
 
 def _plugin_package():
-    """A stand-in for the package whose __init__ imports `krita`."""
-    package = types.ModuleType(PLUGIN_PACKAGE)
+    package = types.ModuleType("recent_brushes")
     package.__path__ = [str(PLUGIN_DIR)]
     return package
 
 
-def install_plugin_package():
-    sys.modules[PLUGIN_PACKAGE] = _plugin_package()
-
-
-def import_plugin_modules(monkeypatch, *names):
-    monkeypatch.setitem(sys.modules, PLUGIN_PACKAGE, _plugin_package())
-    for module in PLUGIN_MODULES:
-        monkeypatch.delitem(sys.modules, module, raising=False)
-    return [importlib.import_module(PLUGIN_PACKAGE + "." + name) for name in names]
-
-
-def forget_plugin_modules_imported_outside_monkeypatch():
-    for module in PLUGIN_MODULES:
-        sys.modules.pop(module, None)
+sys.modules.setdefault("krita", _krita_stub())
+sys.modules.setdefault("recent_brushes", _plugin_package())

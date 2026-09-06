@@ -1,18 +1,8 @@
-try:
-    from PyQt6.QtCore import QSize, Qt
-    from PyQt6.QtGui import QIcon, QPixmap, QStandardItem, QStandardItemModel
-    from PyQt6.QtWidgets import (QAbstractItemView, QHBoxLayout, QLabel, QListView,
-                                 QMenu, QPushButton, QSpinBox, QStyle, QVBoxLayout, QWidget)
-except ImportError:
-    from PyQt5.QtCore import QSize, Qt
-    from PyQt5.QtGui import QIcon, QPixmap, QStandardItem, QStandardItemModel
-    from PyQt5.QtWidgets import (QAbstractItemView, QHBoxLayout, QLabel, QListView,
-                                 QMenu, QPushButton, QSpinBox, QStyle, QVBoxLayout, QWidget)
-
 from krita import DockWidget, Krita, qDebug
 
 from .history import MAX_LIMIT
 from .ignored_dialog import IgnoredBrushesDialog
+from .qt import QtCore, QtGui, QtWidgets
 from .tracker import get_tracker
 
 TITLE = "Recent Brushes"
@@ -20,7 +10,7 @@ LIMIT_LABEL = "Max:"
 CLEAR_LABEL = "Clear"
 PRESET_RESOURCE_TYPE = "preset"
 ICON_SIZE = 48
-NAME_ROLE = Qt.ItemDataRole.UserRole
+NAME_ROLE = QtCore.Qt.ItemDataRole.UserRole
 IGNORE_ACTION_LABEL = 'Ignore "{}"'
 IGNORED_LABEL = "Ignored ({})…"
 
@@ -36,7 +26,7 @@ class RecentBrushesDocker(DockWidget):
         self._attached = False
         self._limit_box = self._build_limit_box()
         self._ignored_button = self._build_ignored_button()
-        self._model = QStandardItemModel()
+        self._model = QtGui.QStandardItemModel()
         self._list = self._build_grid()
         self.setWidget(self._build_body())
         self._tracker.changed.connect(self.refresh)
@@ -65,7 +55,7 @@ class RecentBrushesDocker(DockWidget):
             qDebug("recent_brushes: error while drawing the docker: {!r}".format(error))
 
     def _build_limit_box(self):
-        box = QSpinBox()
+        box = QtWidgets.QSpinBox()
         box.setRange(1, MAX_LIMIT)
         box.setKeyboardTracking(False)
         box.setValue(self._tracker.limit)
@@ -73,39 +63,39 @@ class RecentBrushesDocker(DockWidget):
         return box
 
     def _build_ignored_button(self):
-        button = QPushButton()
+        button = QtWidgets.QPushButton()
         button.clicked.connect(self._on_show_ignored)
         return button
 
     def _build_grid(self):
-        grid = QListView()
-        grid.setViewMode(QListView.ViewMode.IconMode)
-        grid.setMovement(QListView.Movement.Static)
-        grid.setResizeMode(QListView.ResizeMode.Adjust)
+        grid = QtWidgets.QListView()
+        grid.setViewMode(QtWidgets.QListView.ViewMode.IconMode)
+        grid.setMovement(QtWidgets.QListView.Movement.Static)
+        grid.setResizeMode(QtWidgets.QListView.ResizeMode.Adjust)
         grid.setUniformItemSizes(True)
-        grid.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        grid.setIconSize(QSize(ICON_SIZE, ICON_SIZE))
+        grid.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
+        grid.setIconSize(QtCore.QSize(ICON_SIZE, ICON_SIZE))
         grid.setModel(self._model)
         grid.clicked.connect(self._on_clicked)
-        grid.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        grid.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
         grid.customContextMenuRequested.connect(self._on_context_menu)
         return grid
 
     def _build_body(self):
-        clear_button = QPushButton(CLEAR_LABEL)
+        clear_button = QtWidgets.QPushButton(CLEAR_LABEL)
         clear_button.clicked.connect(self._on_clear)
 
-        top_row = QHBoxLayout()
-        top_row.addWidget(QLabel(LIMIT_LABEL))
+        top_row = QtWidgets.QHBoxLayout()
+        top_row.addWidget(QtWidgets.QLabel(LIMIT_LABEL))
         top_row.addWidget(self._limit_box)
         top_row.addWidget(self._ignored_button)
         top_row.addStretch()
         top_row.addWidget(clear_button)
 
-        layout = QVBoxLayout()
+        layout = QtWidgets.QVBoxLayout()
         layout.addLayout(top_row)
         layout.addWidget(self._list)
-        body = QWidget()
+        body = QtWidgets.QWidget()
         body.setLayout(layout)
         return body
 
@@ -128,7 +118,7 @@ class RecentBrushesDocker(DockWidget):
         self._drop_icons_outside(names)
 
     def _item_for(self, name, resource):
-        item = QStandardItem()
+        item = QtGui.QStandardItem()
         item.setEditable(False)
         item.setToolTip(name)
         item.setData(name, NAME_ROLE)
@@ -156,11 +146,11 @@ class RecentBrushesDocker(DockWidget):
     def _render_icon(self, resource):
         image = resource.image()
         if image is None or image.isNull():
-            return self.style().standardIcon(QStyle.StandardPixmap.SP_FileIcon)
-        return QIcon(QPixmap.fromImage(image).scaled(
+            return self.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_FileIcon)
+        return QtGui.QIcon(QtGui.QPixmap.fromImage(image).scaled(
             ICON_SIZE, ICON_SIZE,
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation))
+            QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+            QtCore.Qt.TransformationMode.SmoothTransformation))
 
     def _on_clicked(self, index):
         try:
@@ -185,7 +175,7 @@ class RecentBrushesDocker(DockWidget):
         menu.deleteLater()
 
     def _context_menu_for(self, name):
-        menu = QMenu(self._list)
+        menu = QtWidgets.QMenu(self._list)
         action = menu.addAction(IGNORE_ACTION_LABEL.format(name.replace("&", "&&")))
         action.triggered.connect(lambda *_: self._ignore(name))
         return menu

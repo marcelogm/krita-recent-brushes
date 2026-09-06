@@ -33,9 +33,6 @@ and confirm. Then enable *Recent Brushes* in *Settings > Configure Krita >
 Python Plugin Manager*, restart Krita, and open the docker from
 *Settings > Dockers > Recent Brushes*.
 
-For development, `./install.sh` symlinks this checkout into
-`~/.local/share/krita/pykrita` so edits show up after restarting Krita.
-
 ## Development
 
 The tests run outside Krita against a fake `krita` module. They need

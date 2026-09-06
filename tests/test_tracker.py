@@ -389,6 +389,44 @@ def test_get_tracker_returns_the_same_instance(tracker):
     assert first is second
 
 
+def test_set_sort_persists_emits_changed_and_reorders(tracker):
+    tracker.krita.window = FakeWindow(FakeView(FakePreset("often")))
+    for _ in range(5):
+        tracker.tick()
+        tracker._last_name = None
+    tracker.krita.window = FakeWindow(FakeView(FakePreset("lately")))
+    tracker.tick()
+    assert tracker.names() == ["often", "lately"]
+    emitted = []
+    tracker.changed.connect(lambda: emitted.append(True))
+
+    tracker.set_sort("recent")
+
+    assert emitted == [True]
+    assert tracker.sort == "recent"
+    assert tracker.names() == ["lately", "often"]
+    assert _saved(tracker).sort == "recent"
+
+
+def test_sort_loads_lazily_before_setup(tracker):
+    history = tracker.module.History(sort="recent")
+    history.save(str(tracker.path))
+
+    assert tracker.sort == "recent"
+
+
+def test_set_sort_before_setup_does_not_overwrite_the_saved_file(tracker):
+    history = tracker.module.History()
+    history.touch("kept", time.time())
+    history.save(str(tracker.path))
+
+    tracker.set_sort("recent")
+
+    saved = _saved(tracker)
+    assert saved.names(time.time()) == ["kept"]
+    assert saved.sort == "recent"
+
+
 def test_a_failed_save_is_logged_instead_of_escaping_the_caller(tracker, monkeypatch):
     def explode(self, path):
         raise OSError("disk full")

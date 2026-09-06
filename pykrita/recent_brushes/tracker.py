@@ -54,6 +54,11 @@ class RecentBrushesTracker(Extension):
         self._ensure_loaded()
         return self.history.limit
 
+    @property
+    def sort(self):
+        self._ensure_loaded()
+        return self.history.sort
+
     def names(self):
         self._ensure_loaded()
         return self.history.names(time.time())
@@ -86,6 +91,11 @@ class RecentBrushesTracker(Extension):
     def set_limit(self, limit):
         self._ensure_loaded()
         self.history.set_limit(limit)
+        self._persist()
+
+    def set_sort(self, sort):
+        self._ensure_loaded()
+        self.history.set_sort(sort)
         self._persist()
 
     def clear(self):

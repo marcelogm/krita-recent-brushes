@@ -6,6 +6,10 @@ from dataclasses import dataclass
 
 DEFAULT_LIMIT = 20
 MAX_LIMIT = 100
+SORT_SMART = "smart"
+SORT_RECENT = "recent"
+SORTS = (SORT_SMART, SORT_RECENT)
+DEFAULT_SORT = SORT_SMART
 BACKUP_SUFFIX = ".bak"
 TEMPORARY_PREFIX = ".recent-brushes-"
 TEMPORARY_SUFFIX = ".tmp"
@@ -43,6 +47,10 @@ def _sane_limit(limit):
         return max(1, min(MAX_LIMIT, int(limit)))
     except (TypeError, ValueError, OverflowError):
         return DEFAULT_LIMIT
+
+
+def _sane_sort(sort):
+    return sort if sort in SORTS else DEFAULT_SORT
 
 
 def _read_payload(path):
@@ -112,14 +120,19 @@ def _quarantine_keeping_earlier_backup(path):
 
 class History:
 
-    def __init__(self, limit=DEFAULT_LIMIT):
+    def __init__(self, limit=DEFAULT_LIMIT, sort=DEFAULT_SORT):
         self._limit = _sane_limit(limit)
+        self._sort = _sane_sort(sort)
         self._entries = {}
         self._ignored = set()
 
     @property
     def limit(self):
         return self._limit
+
+    @property
+    def sort(self):
+        return self._sort
 
     def names(self, now):
         ranked = sorted(
@@ -164,6 +177,9 @@ class History:
 
     def set_limit(self, limit):
         self._limit = _sane_limit(limit)
+
+    def set_sort(self, sort):
+        self._sort = _sane_sort(sort)
 
     def clear(self):
         self._entries = {}

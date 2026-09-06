@@ -3,8 +3,9 @@ import tempfile
 
 import pytest
 
-from recent_brushes.history import (DAY, DEFAULT_LIMIT, HOUR, MAX_AGE,
-                                    MAX_LIMIT, WEEK, History, recency_factor)
+from recent_brushes.history import (DAY, DEFAULT_LIMIT, DEFAULT_SORT, HOUR, MAX_AGE,
+                                    MAX_LIMIT, SORT_RECENT, SORT_SMART, WEEK, History,
+                                    recency_factor)
 
 NOW = 1_700_000_000.0
 MINUTE = 60.0
@@ -188,6 +189,32 @@ def test_unusable_limit_falls_back_to_default():
 def test_limit_is_capped_at_max():
     assert History(limit=10 ** 1000).limit == MAX_LIMIT
     assert History(limit=MAX_LIMIT + 1).limit == MAX_LIMIT
+
+
+# --- sort mode ------------------------------------------------------------------
+
+def test_default_sort_is_smart():
+    assert DEFAULT_SORT == "smart"
+    assert History().sort == "smart"
+
+
+def test_sort_can_be_chosen_at_construction_and_changed_later():
+    history = History(sort=SORT_RECENT)
+    assert history.sort == "recent"
+
+    history.set_sort(SORT_SMART)
+    assert history.sort == "smart"
+
+
+def test_unknown_sorts_fall_back_to_smart():
+    assert History(sort="random").sort == "smart"
+    assert History(sort=None).sort == "smart"
+    assert History(sort=3).sort == "smart"
+    assert History(sort=["recent"]).sort == "smart"
+
+    history = History(sort=SORT_RECENT)
+    history.set_sort("bogus")
+    assert history.sort == "smart"
 
 
 # --- ignore / restore / clear -------------------------------------------------

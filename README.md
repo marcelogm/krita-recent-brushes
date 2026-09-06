@@ -53,4 +53,4 @@ python -m venv .venv
 
 ## License
 
-[GPL-3.0](LICENSE).
+Copyright (C) 2026 Marcelo Martins. Released under the [GPL-3.0](LICENSE).

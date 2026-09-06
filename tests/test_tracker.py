@@ -11,7 +11,7 @@ def _saved(tracker):
 def test_tick_records_the_active_preset(tracker):
     tracker.krita.window = FakeWindow(FakeView(FakePreset("Ink-2")))
 
-    tracker._tick()
+    tracker.tick()
 
     assert tracker.names() == ["Ink-2"]
     assert _saved(tracker).names(time.time()) == ["Ink-2"]
@@ -22,10 +22,10 @@ def test_tick_emits_changed_once_per_new_preset(tracker):
     tracker.changed.connect(lambda: counter.__setitem__("count", counter["count"] + 1))
 
     tracker.krita.window = FakeWindow(FakeView(FakePreset("a")))
-    tracker._tick()
-    tracker._tick()
+    tracker.tick()
+    tracker.tick()
     tracker.krita.window = FakeWindow(FakeView(FakePreset("b")))
-    tracker._tick()
+    tracker.tick()
 
     assert counter["count"] == 2
     assert tracker.names() == ["b", "a"]
@@ -34,7 +34,7 @@ def test_tick_emits_changed_once_per_new_preset(tracker):
 def test_tick_without_window_does_nothing(tracker):
     tracker.krita.window = None
 
-    tracker._tick()
+    tracker.tick()
 
     assert tracker.names() == []
     assert not tracker.path.exists()
@@ -43,7 +43,7 @@ def test_tick_without_window_does_nothing(tracker):
 def test_tick_without_view_does_nothing(tracker):
     tracker.krita.window = FakeWindow(None)
 
-    tracker._tick()
+    tracker.tick()
 
     assert tracker.names() == []
     assert not tracker.path.exists()
@@ -64,7 +64,7 @@ def test_active_preset_returns_none_without_a_view_instead_of_raising(tracker):
 def test_tick_with_no_preset_does_nothing(tracker):
     tracker.krita.window = FakeWindow(FakeView(None))
 
-    tracker._tick()
+    tracker.tick()
 
     assert tracker.names() == []
     assert not tracker.path.exists()
@@ -77,26 +77,26 @@ def test_tick_swallows_api_errors(tracker):
 
     tracker.krita.window = FakeWindow(ExplodingView())
 
-    tracker._tick()
+    tracker.tick()
 
     assert tracker.names() == []
 
 
 def test_timer_runs_only_while_a_docker_is_visible(tracker):
-    assert not tracker._timer.isActive()
+    assert not tracker.is_polling()
 
     docker_a = object()
     docker_b = object()
 
     tracker.attach_viewer(docker_a)
     tracker.attach_viewer(docker_b)
-    assert tracker._timer.isActive()
+    assert tracker.is_polling()
 
     tracker.detach_viewer(docker_a)
-    assert tracker._timer.isActive()
+    assert tracker.is_polling()
 
     tracker.detach_viewer(docker_b)
-    assert not tracker._timer.isActive()
+    assert not tracker.is_polling()
 
 
 def test_detaching_a_viewer_twice_does_not_block_the_next_stop(tracker):
@@ -109,21 +109,21 @@ def test_detaching_a_viewer_twice_does_not_block_the_next_stop(tracker):
 
     tracker.detach_viewer(docker_b)
     tracker.attach_viewer(docker_a)
-    assert tracker._timer.isActive()
+    assert tracker.is_polling()
 
     tracker.detach_viewer(docker_a)
-    assert not tracker._timer.isActive()
+    assert not tracker.is_polling()
 
 
 def test_clear_brings_the_current_preset_back(tracker):
     tracker.krita.window = FakeWindow(FakeView(FakePreset("a")))
-    tracker._tick()
+    tracker.tick()
     assert tracker.names() == ["a"]
 
     tracker.clear()
     assert tracker.names() == []
 
-    tracker._tick()
+    tracker.tick()
     assert tracker.names() == ["a"]
 
 
@@ -139,9 +139,9 @@ def test_setup_loads_the_saved_history(tracker):
 
 def test_set_limit_persists_and_hides_the_lower_ranked(tracker):
     tracker.krita.window = FakeWindow(FakeView(FakePreset("a")))
-    tracker._tick()
+    tracker.tick()
     tracker.krita.window = FakeWindow(FakeView(FakePreset("b")))
-    tracker._tick()
+    tracker.tick()
 
     tracker.set_limit(1)
 
@@ -158,7 +158,7 @@ def test_a_tick_before_setup_does_not_overwrite_the_saved_file(tracker):
     history.save(str(tracker.path))
 
     tracker.krita.window = FakeWindow(FakeView(FakePreset("new")))
-    tracker._tick()
+    tracker.tick()
 
     assert _saved(tracker).names(time.time()) == ["new", "old1", "old2"]
 
@@ -177,7 +177,7 @@ def test_set_limit_before_setup_does_not_overwrite_the_saved_file(tracker):
 
 def test_setup_does_not_replace_an_already_loaded_history_with_the_file(tracker):
     tracker.krita.window = FakeWindow(FakeView(FakePreset("a")))
-    tracker._tick()
+    tracker.tick()
     assert tracker.names() == ["a"]
 
     stale = tracker.module.History()
@@ -187,18 +187,18 @@ def test_setup_does_not_replace_an_already_loaded_history_with_the_file(tracker)
     tracker.setup()
     assert tracker.names() == ["a"]
 
-    tracker._tick()
+    tracker.tick()
     assert tracker.names() == ["a"]
 
 
 def test_application_closing_stops_the_timer(tracker):
     tracker.setup()
     tracker.attach_viewer(object())
-    assert tracker._timer.isActive()
+    assert tracker.is_polling()
 
     tracker.notifier.applicationClosing.emit()
 
-    assert not tracker._timer.isActive()
+    assert not tracker.is_polling()
 
 
 def test_polling_gives_up_after_repeated_errors(tracker):
@@ -208,13 +208,13 @@ def test_polling_gives_up_after_repeated_errors(tracker):
 
     tracker.krita.window = FakeWindow(ExplodingView())
     tracker.attach_viewer(object())
-    assert tracker._timer.isActive()
+    assert tracker.is_polling()
 
     limit = tracker.module.MAX_CONSECUTIVE_ERRORS
     for _ in range(limit):
-        tracker._tick()
+        tracker.tick()
 
-    assert not tracker._timer.isActive()
+    assert not tracker.is_polling()
     assert len(tracker.logged) == 2
 
 
@@ -254,18 +254,18 @@ def test_reattaching_a_viewer_retries_polling_after_it_gave_up(tracker):
 
     tracker.krita.window = FakeWindow(ExplodingView())
     tracker.attach_viewer(object())
-    assert tracker._timer.isActive()
+    assert tracker.is_polling()
 
     limit = tracker.module.MAX_CONSECUTIVE_ERRORS
     for _ in range(limit):
-        tracker._tick()
+        tracker.tick()
 
-    assert not tracker._timer.isActive()
+    assert not tracker.is_polling()
     assert tracker._errors == limit
 
     tracker.attach_viewer(object())
 
-    assert tracker._timer.isActive()
+    assert tracker.is_polling()
     assert tracker._errors == 0
 
 
@@ -274,7 +274,7 @@ def test_tick_touches_with_the_current_clock(tracker, monkeypatch):
     monkeypatch.setattr(tracker.module.time, "time", lambda: frozen)
     tracker.krita.window = FakeWindow(FakeView(FakePreset("a")))
 
-    tracker._tick()
+    tracker.tick()
 
     entries = json.loads(tracker.path.read_text(encoding="utf-8"))["entries"]
     assert entries["a"] == {"score": 1.0, "last_used": frozen}
@@ -282,7 +282,7 @@ def test_tick_touches_with_the_current_clock(tracker, monkeypatch):
 
 def test_ignore_persists_and_emits_changed(tracker):
     tracker.krita.window = FakeWindow(FakeView(FakePreset("a")))
-    tracker._tick()
+    tracker.tick()
     emitted = []
     tracker.changed.connect(lambda: emitted.append(True))
 
@@ -314,8 +314,8 @@ def test_polling_an_ignored_preset_writes_and_emits_nothing(tracker):
     tracker.changed.connect(lambda: emitted.append(True))
     tracker.krita.window = FakeWindow(FakeView(FakePreset("Eraser")))
 
-    tracker._tick()
-    tracker._tick()
+    tracker.tick()
+    tracker.tick()
 
     assert tracker.names() == []
     assert emitted == []
@@ -324,15 +324,15 @@ def test_polling_an_ignored_preset_writes_and_emits_nothing(tracker):
 
 def test_ignoring_the_active_preset_records_it_again_once_restored(tracker):
     tracker.krita.window = FakeWindow(FakeView(FakePreset("a")))
-    tracker._tick()
+    tracker.tick()
     assert tracker.names() == ["a"]
 
     tracker.ignore("a")
-    tracker._tick()
+    tracker.tick()
     assert tracker.names() == []
 
     tracker.restore("a")
-    tracker._tick()
+    tracker.tick()
     assert tracker.names() == ["a"]
 
 

@@ -6,11 +6,6 @@ from dataclasses import dataclass
 
 DEFAULT_LIMIT = 20
 MAX_LIMIT = 100
-LIMIT_FIELD = "limit"
-ENTRIES_FIELD = "entries"
-IGNORED_FIELD = "ignored"
-SCORE_FIELD = "score"
-LAST_USED_FIELD = "last_used"
 BACKUP_SUFFIX = ".bak"
 TEMPORARY_PREFIX = ".recent-brushes-"
 TEMPORARY_SUFFIX = ".tmp"
@@ -53,10 +48,10 @@ def _sane_limit(limit):
 def _read_payload(path):
     with open(path, encoding="utf-8") as handle:
         payload = json.load(handle)
-    if not isinstance(payload.get(ENTRIES_FIELD), dict):
-        raise ValueError(ENTRIES_FIELD)
-    if not isinstance(payload.get(IGNORED_FIELD), list):
-        raise ValueError(IGNORED_FIELD)
+    if not isinstance(payload.get("entries"), dict):
+        raise ValueError("entries")
+    if not isinstance(payload.get("ignored"), list):
+        raise ValueError("ignored")
     return payload
 
 
@@ -74,8 +69,8 @@ def _entries_from(rows, ignored):
     for name, row in rows.items():
         if not name or name in ignored or not isinstance(row, dict):
             continue
-        score = row.get(SCORE_FIELD)
-        last_used = row.get(LAST_USED_FIELD)
+        score = row.get("score")
+        last_used = row.get("last_used")
         if (_is_finite_number(score) and 0 < score <= MAX_AGE
                 and _is_finite_number(last_used)):
             entries[name] = Entry(float(score), float(last_used))
@@ -175,11 +170,11 @@ class History:
 
     def save(self, path):
         _write_beside_then_replace(os.fspath(path), {
-            LIMIT_FIELD: self._limit,
-            ENTRIES_FIELD: {
-                name: {SCORE_FIELD: entry.score, LAST_USED_FIELD: entry.last_used}
+            "limit": self._limit,
+            "entries": {
+                name: {"score": entry.score, "last_used": entry.last_used}
                 for name, entry in self._entries.items()},
-            IGNORED_FIELD: sorted(self._ignored),
+            "ignored": sorted(self._ignored),
         })
 
     @classmethod
@@ -192,8 +187,8 @@ class History:
         except Exception:
             _quarantine_keeping_earlier_backup(path)
             return cls()
-        history = cls(payload.get(LIMIT_FIELD))
-        ignored = _ignored_from(payload[IGNORED_FIELD])
+        history = cls(payload.get("limit"))
+        ignored = _ignored_from(payload["ignored"])
         history._ignored = ignored
-        history._entries = _entries_from(payload[ENTRIES_FIELD], ignored)
+        history._entries = _entries_from(payload["entries"], ignored)
         return history

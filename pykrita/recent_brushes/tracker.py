@@ -1,14 +1,18 @@
+"""Records which brush preset is active.
+
+Krita only got a `View.currentBrushPresetChanged` signal in 6.0.3. To keep
+working on 5.2 and earlier 6.0 releases, while a docker is visible this polls
+the active view a few times per second and touches the history whenever the
+preset name differs from the last one seen.
+"""
+
 import os
 import time
-
-try:
-    from PyQt6.QtCore import QTimer, pyqtSignal
-except ImportError:
-    from PyQt5.QtCore import QTimer, pyqtSignal
 
 from krita import Extension, Krita, qDebug
 
 from .history import History
+from .qt import QtCore
 
 POLL_INTERVAL_MS = 300
 MAX_CONSECUTIVE_ERRORS = 20
@@ -22,7 +26,7 @@ def history_path():
 
 class RecentBrushesTracker(Extension):
 
-    changed = pyqtSignal()
+    changed = QtCore.pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -33,9 +37,9 @@ class RecentBrushesTracker(Extension):
         self._last_error = None
         self._errors = 0
         self._viewers = set()
-        self._timer = QTimer(self)
+        self._timer = QtCore.QTimer(self)
         self._timer.setInterval(POLL_INTERVAL_MS)
-        self._timer.timeout.connect(self._tick)
+        self._timer.timeout.connect(self.tick)
 
     def setup(self):
         self._ensure_loaded()
@@ -53,6 +57,17 @@ class RecentBrushesTracker(Extension):
     def names(self):
         self._ensure_loaded()
         return self.history.names(time.time())
+
+    def is_polling(self):
+        return self._timer.isActive()
+
+    def tick(self):
+        try:
+            self._record_active_preset()
+        except Exception as error:
+            self._note_error(error)
+            return
+        self._forget_errors()
 
     def attach_viewer(self, viewer):
         self._viewers.add(id(viewer))
@@ -127,14 +142,6 @@ class RecentBrushesTracker(Extension):
         if view is None:
             return None
         return view.currentBrushPreset()
-
-    def _tick(self):
-        try:
-            self._record_active_preset()
-        except Exception as error:
-            self._note_error(error)
-            return
-        self._forget_errors()
 
     def _record_active_preset(self):
         self._ensure_loaded()

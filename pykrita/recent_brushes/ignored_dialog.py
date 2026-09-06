@@ -1,42 +1,34 @@
-try:
-    from PyQt6.QtWidgets import (QAbstractItemView, QDialog, QHBoxLayout, QListWidget,
-                                 QPushButton, QVBoxLayout)
-except ImportError:
-    from PyQt5.QtWidgets import (QAbstractItemView, QDialog, QHBoxLayout, QListWidget,
-                                 QPushButton, QVBoxLayout)
+from .qt import QtWidgets
 
 DIALOG_TITLE = "Ignored brushes"
 RESTORE_LABEL = "Restore"
 CLOSE_LABEL = "Close"
 
 
-class IgnoredBrushesDialog(QDialog):
+class IgnoredBrushesDialog(QtWidgets.QDialog):
 
     def __init__(self, tracker, parent=None):
         super().__init__(parent)
         self.setWindowTitle(DIALOG_TITLE)
         self._tracker = tracker
-        self._list = QListWidget()
-        self._list.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self._restore_button = QPushButton(RESTORE_LABEL)
-        self._close_button = QPushButton(CLOSE_LABEL)
+        self._list = QtWidgets.QListWidget()
+        self._list.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
+        self._restore_button = QtWidgets.QPushButton(RESTORE_LABEL)
+        self._close_button = QtWidgets.QPushButton(CLOSE_LABEL)
 
         self._list.itemSelectionChanged.connect(self._update_restore_button)
         self._restore_button.clicked.connect(self._on_restore)
         self._close_button.clicked.connect(self.accept)
 
-        buttons = QHBoxLayout()
+        buttons = QtWidgets.QHBoxLayout()
         buttons.addStretch()
         buttons.addWidget(self._restore_button)
         buttons.addWidget(self._close_button)
-        layout = QVBoxLayout(self)
+        layout = QtWidgets.QVBoxLayout(self)
         layout.addWidget(self._list)
         layout.addLayout(buttons)
 
         self._reload()
-
-    def names(self):
-        return [self._list.item(row).text() for row in range(self._list.count())]
 
     def _reload(self):
         self._list.clear()

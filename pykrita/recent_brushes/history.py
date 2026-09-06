@@ -135,11 +135,14 @@ class History:
         return self._sort
 
     def names(self, now):
-        ranked = sorted(
-            self._entries.items(),
-            key=lambda item: (_frecency(item[1], now), item[1].last_used),
-            reverse=True)
+        by_name = sorted(self._entries.items())
+        ranked = sorted(by_name, key=self._rank_key(now), reverse=True)
         return [name for name, _ in ranked[:self._limit]]
+
+    def _rank_key(self, now):
+        if self._sort == SORT_RECENT:
+            return lambda item: item[1].last_used
+        return lambda item: (_frecency(item[1], now), item[1].last_used)
 
     def touch(self, name, now):
         if not name or name in self._ignored:

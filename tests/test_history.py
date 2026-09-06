@@ -217,6 +217,43 @@ def test_unknown_sorts_fall_back_to_smart():
     assert history.sort == "smart"
 
 
+def test_recent_orders_by_last_use_and_ignores_the_score():
+    history = History(sort=SORT_RECENT)
+    for _ in range(5):
+        history.touch("often", NOW - 10 * MINUTE)
+    history.touch("lately", NOW - 2 * MINUTE)
+
+    assert history.names(NOW) == ["lately", "often"]
+    assert history.names(NOW + WEEK) == ["lately", "often"]
+
+
+def test_smart_and_recent_disagree_on_the_same_entries():
+    history = History()
+    for _ in range(5):
+        history.touch("often", NOW - 10 * MINUTE)
+    history.touch("lately", NOW - 2 * MINUTE)
+
+    assert history.names(NOW) == ["often", "lately"]
+    history.set_sort(SORT_RECENT)
+    assert history.names(NOW) == ["lately", "often"]
+
+
+def test_recent_breaks_ties_alphabetically():
+    history = History(sort=SORT_RECENT)
+    history.touch("zeta", NOW)
+    history.touch("alpha", NOW)
+    history.touch("mid", NOW)
+
+    assert history.names(NOW) == ["alpha", "mid", "zeta"]
+
+
+def test_limit_applies_in_recent_mode():
+    history = History(limit=2, sort=SORT_RECENT)
+    _touch_in_order(history, ["a", "b", "c", "d"])
+
+    assert history.names(NOW) == ["d", "c"]
+
+
 # --- ignore / restore / clear -------------------------------------------------
 
 def test_ignore_removes_the_name_from_the_ranking_and_lists_it():

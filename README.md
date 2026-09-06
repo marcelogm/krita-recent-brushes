@@ -18,8 +18,7 @@ chooser.
 - Right-click a preset to ignore it. Ignored presets never show up again;
   the *Ignored* button lets you restore them.
 - *Clear* empties the list.
-- The history is saved to `~/.local/share/krita/recent_brushes_history.json`
-  and survives restarts.
+- The history lives in `~/.local/share/krita/recent_brushes_history.json`.
 
 ## Install
 
@@ -40,7 +39,7 @@ The tests run outside Krita against a fake `krita` module. They need
 
 ```
 python -m venv .venv
-.venv/bin/pip install pytest PyQt6
+.venv/bin/pip install -r requirements.txt
 .venv/bin/pytest
 ```
 

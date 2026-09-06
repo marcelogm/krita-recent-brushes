@@ -7,12 +7,20 @@ from .tracker import get_tracker
 
 TITLE = "Recent Brushes"
 LIMIT_LABEL = "Max:"
-CLEAR_LABEL = "Clear"
+CLEAR_TOOLTIP = "Clear history"
+IGNORED_TOOLTIP = "Ignored brushes ({})…"
+SETTINGS_TOOLTIP = "Settings"
 PRESET_RESOURCE_TYPE = "preset"
 ICON_SIZE = 48
 NAME_ROLE = QtCore.Qt.ItemDataRole.UserRole
 IGNORE_ACTION_LABEL = 'Ignore "{}"'
-IGNORED_LABEL = "Ignored ({})…"
+
+CLEAR_ICONS = ("edit-clear", "deletelayer")
+IGNORED_ICONS = ("novisible", "hidden")
+SETTINGS_ICONS = ("configure",)
+CLEAR_FALLBACK = QtWidgets.QStyle.StandardPixmap.SP_TrashIcon
+IGNORED_FALLBACK = QtWidgets.QStyle.StandardPixmap.SP_DialogCancelButton
+SETTINGS_FALLBACK = QtWidgets.QStyle.StandardPixmap.SP_FileDialogDetailedView
 
 
 class RecentBrushesDocker(DockWidget):
@@ -25,7 +33,10 @@ class RecentBrushesDocker(DockWidget):
         self._presets = {}
         self._attached = False
         self._limit_box = self._build_limit_box()
-        self._ignored_button = self._build_ignored_button()
+        self._ignored_button = self._build_tool_button(
+            IGNORED_ICONS, IGNORED_FALLBACK, IGNORED_TOOLTIP.format(0), self._on_show_ignored)
+        self._clear_button = self._build_tool_button(
+            CLEAR_ICONS, CLEAR_FALLBACK, CLEAR_TOOLTIP, self._on_clear)
         self._model = QtGui.QStandardItemModel()
         self._list = self._build_grid()
         self.setWidget(self._build_body())
@@ -62,10 +73,20 @@ class RecentBrushesDocker(DockWidget):
         box.valueChanged.connect(self._on_limit_changed)
         return box
 
-    def _build_ignored_button(self):
-        button = QtWidgets.QPushButton()
-        button.clicked.connect(self._on_show_ignored)
+    def _build_tool_button(self, icon_names, fallback, tooltip, on_click):
+        button = QtWidgets.QToolButton()
+        button.setAutoRaise(True)
+        button.setIcon(self._theme_icon(icon_names, fallback))
+        button.setToolTip(tooltip)
+        button.clicked.connect(on_click)
         return button
+
+    def _theme_icon(self, icon_names, fallback):
+        for name in icon_names:
+            icon = Krita.instance().icon(name)
+            if not icon.isNull():
+                return icon
+        return self.style().standardIcon(fallback)
 
     def _build_grid(self):
         grid = QtWidgets.QListView()
@@ -82,15 +103,12 @@ class RecentBrushesDocker(DockWidget):
         return grid
 
     def _build_body(self):
-        clear_button = QtWidgets.QPushButton(CLEAR_LABEL)
-        clear_button.clicked.connect(self._on_clear)
-
         top_row = QtWidgets.QHBoxLayout()
         top_row.addWidget(QtWidgets.QLabel(LIMIT_LABEL))
         top_row.addWidget(self._limit_box)
-        top_row.addWidget(self._ignored_button)
         top_row.addStretch()
-        top_row.addWidget(clear_button)
+        top_row.addWidget(self._ignored_button)
+        top_row.addWidget(self._clear_button)
 
         layout = QtWidgets.QVBoxLayout()
         layout.addLayout(top_row)
@@ -107,8 +125,8 @@ class RecentBrushesDocker(DockWidget):
     def _rebuild(self):
         self._presets = Krita.instance().resources(PRESET_RESOURCE_TYPE)
         self._mirror_limit_from_tracker()
-        self._ignored_button.setText(
-            IGNORED_LABEL.format(len(self._tracker.ignored_names())))
+        self._ignored_button.setToolTip(
+            IGNORED_TOOLTIP.format(len(self._tracker.ignored_names())))
         names = self._tracker.names()
         self._model.clear()
         for name in names:

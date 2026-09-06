@@ -369,11 +369,11 @@ def _docker_ignoring(env, *names):
 
 def test_ignored_button_shows_the_count(env):
     docker = _docker_ignoring(env, "b", "a")
-    assert docker._ignored_button.text() == "Ignored (2)…"
+    assert docker._ignored_button.toolTip() == "Ignored brushes (2)…"
 
     env.tracker_module.get_tracker().restore("a")
 
-    assert docker._ignored_button.text() == "Ignored (1)…"
+    assert docker._ignored_button.toolTip() == "Ignored brushes (1)…"
 
 
 def test_ignored_button_opens_the_dialog_on_the_tracker(env, monkeypatch):
@@ -426,7 +426,7 @@ def test_restoring_from_the_dialog_puts_the_brush_back(env):
     assert _dialog_names(dialog) == ["b"]
     assert not dialog._restore_button.isEnabled()
     assert tracker.ignored_names() == ["b"]
-    assert docker._ignored_button.text() == "Ignored (1)…"
+    assert docker._ignored_button.toolTip() == "Ignored brushes (1)…"
 
 
 def test_restore_with_nothing_selected_does_nothing(env):
@@ -471,3 +471,35 @@ def test_clicking_logs_activation_errors_instead_of_raising(env):
     docker._on_clicked(docker._model.index(0, 0))
 
     assert env.logged == ["recent_brushes: could not activate the preset: RuntimeError('krita exploded')"]
+
+
+def test_action_buttons_are_icon_only_tool_buttons(env):
+    docker = env.docker_module.RecentBrushesDocker()
+
+    for button in (docker._ignored_button, docker._clear_button):
+        assert isinstance(button, env.docker_module.QtWidgets.QToolButton)
+        assert button.text() == ""
+        assert button.icon().isNull() is False
+    assert docker._clear_button.toolTip() == "Clear history"
+
+
+def test_buttons_ask_krita_for_theme_icons_before_falling_back(env):
+    env.docker_module.RecentBrushesDocker()
+
+    assert "edit-clear" in env.krita.icons_requested
+    assert "novisible" in env.krita.icons_requested
+
+
+def test_clicking_clear_button_empties_grid_and_icon_cache(env):
+    history = env.tracker_module.History()
+    history.touch("Ink", 1.0)
+    history.save(str(env.path))
+    env.krita.presets = {"Ink": FakePreset("Ink")}
+    docker = env.docker_module.RecentBrushesDocker()
+    assert docker._model.rowCount() == 1
+
+    docker._clear_button.click()
+
+    assert docker._model.rowCount() == 0
+    assert docker._icons == {}
+    assert env.tracker_module.History.load(str(env.path)).names(time.time()) == []

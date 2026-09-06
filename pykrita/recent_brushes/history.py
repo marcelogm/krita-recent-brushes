@@ -1,5 +1,6 @@
 import json
 import math
+import operator
 import os
 import tempfile
 from dataclasses import dataclass
@@ -135,7 +136,7 @@ class History:
         return self._sort
 
     def names(self, now):
-        by_name = sorted(self._entries.items())
+        by_name = sorted(self._entries.items(), key=operator.itemgetter(0))
         ranked = sorted(by_name, key=self._rank_key(now), reverse=True)
         return [name for name, _ in ranked[:self._limit]]
 

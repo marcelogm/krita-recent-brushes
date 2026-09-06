@@ -247,6 +247,15 @@ def test_recent_breaks_ties_alphabetically():
     assert history.names(NOW) == ["alpha", "mid", "zeta"]
 
 
+def test_smart_breaks_ties_alphabetically():
+    history = History()
+    history.touch("zeta", NOW)
+    history.touch("alpha", NOW)
+    history.touch("mid", NOW)
+
+    assert history.names(NOW) == ["alpha", "mid", "zeta"]
+
+
 def test_limit_applies_in_recent_mode():
     history = History(limit=2, sort=SORT_RECENT)
     _touch_in_order(history, ["a", "b", "c", "d"])

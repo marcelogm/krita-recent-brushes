@@ -35,9 +35,11 @@ class RecentBrushesDocker(DockWidget):
         self._attached = False
         self._limit_box = self._build_limit_box()
         self._ignored_button = self._build_tool_button(
-            IGNORED_ICONS, IGNORED_FALLBACK, IGNORED_TOOLTIP.format(0), self._on_show_ignored)
+            IGNORED_ICONS, IGNORED_FALLBACK, IGNORED_TOOLTIP.format(0))
+        self._ignored_button.clicked.connect(self._on_show_ignored)
         self._clear_button = self._build_tool_button(
-            CLEAR_ICONS, CLEAR_FALLBACK, CLEAR_TOOLTIP, self._on_clear)
+            CLEAR_ICONS, CLEAR_FALLBACK, CLEAR_TOOLTIP)
+        self._clear_button.clicked.connect(self._on_clear)
         self._settings_button = self._build_settings_button()
         self._model = QtGui.QStandardItemModel()
         self._list = self._build_grid()
@@ -75,12 +77,11 @@ class RecentBrushesDocker(DockWidget):
         box.valueChanged.connect(self._on_limit_changed)
         return box
 
-    def _build_tool_button(self, icon_names, fallback, tooltip, on_click):
+    def _build_tool_button(self, icon_names, fallback, tooltip):
         button = QtWidgets.QToolButton()
         button.setAutoRaise(True)
         button.setIcon(self._theme_icon(icon_names, fallback))
         button.setToolTip(tooltip)
-        button.clicked.connect(on_click)
         return button
 
     def _theme_icon(self, icon_names, fallback):
@@ -91,10 +92,7 @@ class RecentBrushesDocker(DockWidget):
         return self.style().standardIcon(fallback)
 
     def _build_settings_button(self):
-        button = QtWidgets.QToolButton()
-        button.setAutoRaise(True)
-        button.setIcon(self._theme_icon(SETTINGS_ICONS, SETTINGS_FALLBACK))
-        button.setToolTip(SETTINGS_TOOLTIP)
+        button = self._build_tool_button(SETTINGS_ICONS, SETTINGS_FALLBACK, SETTINGS_TOOLTIP)
         button.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.InstantPopup)
         button.setStyleSheet(NO_MENU_ARROW)
         button.setMenu(self._build_settings_menu())

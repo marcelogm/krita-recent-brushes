@@ -117,21 +117,6 @@ def test_clicking_without_an_active_view_does_nothing_instead_of_raising(env):
     docker._on_clicked(docker._model.index(0, 0))
 
 
-def test_clear_button_empties_grid_and_icon_cache(env):
-    history = env.tracker_module.History()
-    history.touch("Ink", 1.0)
-    history.save(str(env.path))
-    env.krita.presets = {"Ink": FakePreset("Ink")}
-    docker = env.docker_module.RecentBrushesDocker()
-    assert docker._model.rowCount() == 1
-    assert docker._icons
-
-    docker._on_clear()
-
-    assert docker._model.rowCount() == 0
-    assert docker._icons == {}
-
-
 def test_show_hide_events_attach_detach_once(env):
     history = env.tracker_module.History()
     history.save(str(env.path))
@@ -498,6 +483,7 @@ def test_clicking_clear_button_empties_grid_and_icon_cache(env):
     env.krita.presets = {"Ink": FakePreset("Ink")}
     docker = env.docker_module.RecentBrushesDocker()
     assert docker._model.rowCount() == 1
+    assert docker._icons
 
     docker._clear_button.click()
 
@@ -529,10 +515,23 @@ def test_spinner_inside_the_menu_still_sets_the_limit(env):
     history.save(str(env.path))
     env.krita.presets = {name: FakePreset(name) for name in ("a", "b")}
     docker = env.docker_module.RecentBrushesDocker()
-    docker._settings_button.menu().show()
+    docker._settings_button.menu().popup(QtCore.QPoint(0, 0))
+    edit = docker._limit_box.lineEdit()
+    edit.selectAll()
 
-    docker._limit_box.setValue(1)
+    QtTest.QTest.keyClicks(edit, "1")
+    QtTest.QTest.keyClick(edit, QtCore.Qt.Key.Key_Return)
 
     assert _model_names(env, docker) == ["b"]
     assert env.tracker_module.History.load(str(env.path)).limit == 1
     docker._settings_button.menu().hide()
+
+
+def test_krita_theme_icon_wins_over_the_qt_fallback(env):
+    themed = QtGui.QIcon(QtGui.QPixmap(4, 4))
+    env.krita.icons["edit-clear"] = themed
+
+    docker = env.docker_module.RecentBrushesDocker()
+
+    assert docker._clear_button.icon().cacheKey() == themed.cacheKey()
+    assert "deletelayer" not in env.krita.icons_requested

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Service
+ServiceTypes=Krita/PythonPlugin
+X-KDE-Library=recent_brushes
+X-Python-2-Compatible=false
+Name=Recent Brushes
+Comment=Docker with recently used brush presets, ranked by frequency and recency.

@@ -34,13 +34,15 @@ Python Plugin Manager*, restart Krita, and open the docker from
 
 ## Development
 
-The tests run outside Krita against a fake `krita` module. They need
-`pytest` and `PyQt6` (or `PyQt5`):
+The plugin lives in `pykrita/`, mirroring Krita's own plugin folder. The
+tests run outside Krita against a fake `krita` module and need `PyQt6` (or
+`PyQt5`):
 
 ```
 python -m venv .venv
 .venv/bin/pip install -r requirements.txt
 .venv/bin/pytest
+.venv/bin/ruff check .
 ```
 
 ## License

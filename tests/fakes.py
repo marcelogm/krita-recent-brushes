@@ -15,6 +15,7 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parent.parent
 PLUGIN_PACKAGE = "recent_brushes"
+PLUGIN_DIR = ROOT / "pykrita" / PLUGIN_PACKAGE
 PLUGIN_MODULES = ("recent_brushes.docker", "recent_brushes.ignored_dialog",
                   "recent_brushes.tracker", "recent_brushes.history")
 
@@ -85,10 +86,19 @@ def install_fake_krita(monkeypatch, log_to=None, dock_widget=None):
     return fake_krita
 
 
-def import_plugin_modules(monkeypatch, *names):
+def _plugin_package():
+    """A stand-in for the package whose __init__ imports `krita`."""
     package = types.ModuleType(PLUGIN_PACKAGE)
-    package.__path__ = [str(ROOT / PLUGIN_PACKAGE)]
-    monkeypatch.setitem(sys.modules, PLUGIN_PACKAGE, package)
+    package.__path__ = [str(PLUGIN_DIR)]
+    return package
+
+
+def install_plugin_package():
+    sys.modules[PLUGIN_PACKAGE] = _plugin_package()
+
+
+def import_plugin_modules(monkeypatch, *names):
+    monkeypatch.setitem(sys.modules, PLUGIN_PACKAGE, _plugin_package())
     for module in PLUGIN_MODULES:
         monkeypatch.delitem(sys.modules, module, raising=False)
     return [importlib.import_module(PLUGIN_PACKAGE + "." + name) for name in names]

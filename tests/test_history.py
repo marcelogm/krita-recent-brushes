@@ -3,8 +3,8 @@ import tempfile
 
 import pytest
 
-from history import (DAY, DEFAULT_LIMIT, HOUR, MAX_AGE,
-                     MAX_LIMIT, WEEK, History, recency_factor)
+from recent_brushes.history import (DAY, DEFAULT_LIMIT, HOUR, MAX_AGE,
+                                    MAX_LIMIT, WEEK, History, recency_factor)
 
 NOW = 1_700_000_000.0
 MINUTE = 60.0
@@ -356,7 +356,7 @@ def test_failed_save_keeps_the_previous_file_intact(tmp_path, monkeypatch):
     def explode(*args, **kwargs):
         raise RuntimeError("disk full")
 
-    monkeypatch.setattr("history.json.dump", explode)
+    monkeypatch.setattr("recent_brushes.history.json.dump", explode)
     saved.touch("b", NOW)
     with pytest.raises(RuntimeError):
         saved.save(path)
@@ -374,7 +374,7 @@ def test_save_writes_its_temporary_file_on_the_destination_filesystem(tmp_path, 
         directories.append(kwargs["dir"])
         return real_mkstemp(*args, **kwargs)
 
-    monkeypatch.setattr("history.tempfile.mkstemp", spy)
+    monkeypatch.setattr("recent_brushes.history.tempfile.mkstemp", spy)
     History().save(path)
 
     assert directories == [str(path.parent)]
@@ -391,7 +391,7 @@ def test_load_of_missing_file_returns_empty_history(tmp_path):
 
 def test_load_of_missing_file_never_attempts_a_quarantine(tmp_path, monkeypatch):
     calls = []
-    monkeypatch.setattr("history.os.replace", lambda *args: calls.append(args))
+    monkeypatch.setattr("recent_brushes.history.os.replace", lambda *args: calls.append(args))
 
     loaded = History.load(tmp_path / "does-not-exist.json")
 

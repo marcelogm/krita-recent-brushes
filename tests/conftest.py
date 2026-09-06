@@ -11,7 +11,9 @@ except ImportError:
     from PyQt5.QtWidgets import QApplication, QDockWidget
 
 from fakes import (forget_plugin_modules_imported_outside_monkeypatch,
-                   import_plugin_modules, install_fake_krita)
+                   import_plugin_modules, install_fake_krita, install_plugin_package)
+
+install_plugin_package()
 
 
 @pytest.fixture(scope="session")

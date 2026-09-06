@@ -1,2 +1,3 @@
 pytest
 PyQt6
+ruff

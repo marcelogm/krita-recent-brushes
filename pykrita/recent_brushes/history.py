@@ -190,6 +190,7 @@ class History:
     def save(self, path):
         _write_beside_then_replace(os.fspath(path), {
             "limit": self._limit,
+            "sort": self._sort,
             "entries": {
                 name: {"score": entry.score, "last_used": entry.last_used}
                 for name, entry in self._entries.items()},
@@ -206,7 +207,7 @@ class History:
         except Exception:
             _quarantine_keeping_earlier_backup(path)
             return cls()
-        history = cls(payload.get("limit"))
+        history = cls(payload.get("limit"), payload.get("sort"))
         ignored = _ignored_from(payload["ignored"])
         history._ignored = ignored
         history._entries = _entries_from(payload["entries"], ignored)

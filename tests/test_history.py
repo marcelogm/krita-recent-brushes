@@ -254,6 +254,38 @@ def test_limit_applies_in_recent_mode():
     assert history.names(NOW) == ["d", "c"]
 
 
+def test_save_then_load_round_trips_the_sort(tmp_path):
+    path = tmp_path / "history.json"
+    history = History(sort=SORT_RECENT)
+    history.touch("a", NOW)
+
+    history.save(path)
+    loaded = History.load(path)
+
+    assert loaded.sort == "recent"
+
+
+def test_load_of_a_file_without_a_sort_key_uses_smart(tmp_path):
+    path = tmp_path / "history.json"
+    path.write_text('{"limit": 5, "entries": {}, "ignored": []}', encoding="utf-8")
+
+    loaded = History.load(path)
+
+    assert loaded.sort == "smart"
+    assert not (tmp_path / "history.json.bak").exists()
+
+
+def test_load_of_an_invalid_sort_uses_smart_without_quarantine(tmp_path):
+    path = tmp_path / "history.json"
+    path.write_text('{"limit": 5, "sort": 42, "entries": {}, "ignored": []}',
+                    encoding="utf-8")
+
+    loaded = History.load(path)
+
+    assert loaded.sort == "smart"
+    assert not (tmp_path / "history.json.bak").exists()
+
+
 # --- ignore / restore / clear -------------------------------------------------
 
 def test_ignore_removes_the_name_from_the_ranking_and_lists_it():
@@ -358,6 +390,7 @@ def test_saved_file_has_the_documented_shape(tmp_path):
 
     assert json.loads(path.read_text(encoding="utf-8")) == {
         "limit": 20,
+        "sort": "smart",
         "entries": {"a": {"score": 1.0, "last_used": NOW}},
         "ignored": ["b", "e"],
     }

@@ -1,11 +1,16 @@
 import json
 import math
+import operator
 import os
 import tempfile
 from dataclasses import dataclass
 
 DEFAULT_LIMIT = 20
 MAX_LIMIT = 100
+SORT_SMART = "smart"
+SORT_RECENT = "recent"
+SORTS = (SORT_SMART, SORT_RECENT)
+DEFAULT_SORT = SORT_SMART
 BACKUP_SUFFIX = ".bak"
 TEMPORARY_PREFIX = ".recent-brushes-"
 TEMPORARY_SUFFIX = ".tmp"
@@ -43,6 +48,10 @@ def _sane_limit(limit):
         return max(1, min(MAX_LIMIT, int(limit)))
     except (TypeError, ValueError, OverflowError):
         return DEFAULT_LIMIT
+
+
+def _sane_sort(sort):
+    return sort if sort in SORTS else DEFAULT_SORT
 
 
 def _read_payload(path):
@@ -112,8 +121,9 @@ def _quarantine_keeping_earlier_backup(path):
 
 class History:
 
-    def __init__(self, limit=DEFAULT_LIMIT):
+    def __init__(self, limit=DEFAULT_LIMIT, sort=DEFAULT_SORT):
         self._limit = _sane_limit(limit)
+        self._sort = _sane_sort(sort)
         self._entries = {}
         self._ignored = set()
 
@@ -121,12 +131,19 @@ class History:
     def limit(self):
         return self._limit
 
+    @property
+    def sort(self):
+        return self._sort
+
     def names(self, now):
-        ranked = sorted(
-            self._entries.items(),
-            key=lambda item: (_frecency(item[1], now), item[1].last_used),
-            reverse=True)
+        by_name = sorted(self._entries.items(), key=operator.itemgetter(0))
+        ranked = sorted(by_name, key=self._rank_key(now), reverse=True)
         return [name for name, _ in ranked[:self._limit]]
+
+    def _rank_key(self, now):
+        if self._sort == SORT_RECENT:
+            return lambda item: item[1].last_used
+        return lambda item: (_frecency(item[1], now), item[1].last_used)
 
     def touch(self, name, now):
         if not name or name in self._ignored:
@@ -165,12 +182,16 @@ class History:
     def set_limit(self, limit):
         self._limit = _sane_limit(limit)
 
+    def set_sort(self, sort):
+        self._sort = _sane_sort(sort)
+
     def clear(self):
         self._entries = {}
 
     def save(self, path):
         _write_beside_then_replace(os.fspath(path), {
             "limit": self._limit,
+            "sort": self._sort,
             "entries": {
                 name: {"score": entry.score, "last_used": entry.last_used}
                 for name, entry in self._entries.items()},
@@ -187,7 +208,7 @@ class History:
         except Exception:
             _quarantine_keeping_earlier_backup(path)
             return cls()
-        history = cls(payload.get("limit"))
+        history = cls(payload.get("limit"), payload.get("sort"))
         ignored = _ignored_from(payload["ignored"])
         history._ignored = ignored
         history._entries = _entries_from(payload["entries"], ignored)

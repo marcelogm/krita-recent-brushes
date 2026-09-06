@@ -67,6 +67,8 @@ class FakeKrita(QtCore.QObject):
         self.window = None
         self.presets = {}
         self.notifier_object = FakeNotifier()
+        self.icons_requested = []
+        self.icons = {}
 
     def activeWindow(self):
         return self.window
@@ -77,6 +79,10 @@ class FakeKrita(QtCore.QObject):
 
     def notifier(self):
         return self.notifier_object
+
+    def icon(self, name):
+        self.icons_requested.append(name)
+        return self.icons.get(name, QtGui.QIcon())
 
 
 current = types.SimpleNamespace(krita=None, logged=[])

@@ -3,8 +3,9 @@ import tempfile
 
 import pytest
 
-from recent_brushes.history import (DAY, DEFAULT_LIMIT, HOUR, MAX_AGE,
-                                    MAX_LIMIT, WEEK, History, recency_factor)
+from recent_brushes.history import (DAY, DEFAULT_LIMIT, DEFAULT_SORT, HOUR, MAX_AGE,
+                                    MAX_LIMIT, SORT_RECENT, SORT_SMART, WEEK, History,
+                                    recency_factor)
 
 NOW = 1_700_000_000.0
 MINUTE = 60.0
@@ -190,6 +191,110 @@ def test_limit_is_capped_at_max():
     assert History(limit=MAX_LIMIT + 1).limit == MAX_LIMIT
 
 
+# --- sort mode ------------------------------------------------------------------
+
+def test_default_sort_is_smart():
+    assert DEFAULT_SORT == "smart"
+    assert History().sort == "smart"
+
+
+def test_sort_can_be_chosen_at_construction_and_changed_later():
+    history = History(sort=SORT_RECENT)
+    assert history.sort == "recent"
+
+    history.set_sort(SORT_SMART)
+    assert history.sort == "smart"
+
+
+def test_unknown_sorts_fall_back_to_smart():
+    assert History(sort="random").sort == "smart"
+    assert History(sort=None).sort == "smart"
+    assert History(sort=3).sort == "smart"
+    assert History(sort=["recent"]).sort == "smart"
+
+    history = History(sort=SORT_RECENT)
+    history.set_sort("bogus")
+    assert history.sort == "smart"
+
+
+def test_recent_orders_by_last_use_and_ignores_the_score():
+    history = History(sort=SORT_RECENT)
+    for _ in range(5):
+        history.touch("often", NOW - 10 * MINUTE)
+    history.touch("lately", NOW - 2 * MINUTE)
+
+    assert history.names(NOW) == ["lately", "often"]
+    assert history.names(NOW + WEEK) == ["lately", "often"]
+
+
+def test_smart_and_recent_disagree_on_the_same_entries():
+    history = History()
+    for _ in range(5):
+        history.touch("often", NOW - 10 * MINUTE)
+    history.touch("lately", NOW - 2 * MINUTE)
+
+    assert history.names(NOW) == ["often", "lately"]
+    history.set_sort(SORT_RECENT)
+    assert history.names(NOW) == ["lately", "often"]
+
+
+def test_recent_breaks_ties_alphabetically():
+    history = History(sort=SORT_RECENT)
+    history.touch("zeta", NOW)
+    history.touch("alpha", NOW)
+    history.touch("mid", NOW)
+
+    assert history.names(NOW) == ["alpha", "mid", "zeta"]
+
+
+def test_smart_breaks_ties_alphabetically():
+    history = History()
+    history.touch("zeta", NOW)
+    history.touch("alpha", NOW)
+    history.touch("mid", NOW)
+
+    assert history.names(NOW) == ["alpha", "mid", "zeta"]
+
+
+def test_limit_applies_in_recent_mode():
+    history = History(limit=2, sort=SORT_RECENT)
+    _touch_in_order(history, ["a", "b", "c", "d"])
+
+    assert history.names(NOW) == ["d", "c"]
+
+
+def test_save_then_load_round_trips_the_sort(tmp_path):
+    path = tmp_path / "history.json"
+    history = History(sort=SORT_RECENT)
+    history.touch("a", NOW)
+
+    history.save(path)
+    loaded = History.load(path)
+
+    assert loaded.sort == "recent"
+
+
+def test_load_of_a_file_without_a_sort_key_uses_smart(tmp_path):
+    path = tmp_path / "history.json"
+    path.write_text('{"limit": 5, "entries": {}, "ignored": []}', encoding="utf-8")
+
+    loaded = History.load(path)
+
+    assert loaded.sort == "smart"
+    assert not (tmp_path / "history.json.bak").exists()
+
+
+def test_load_of_an_invalid_sort_uses_smart_without_quarantine(tmp_path):
+    path = tmp_path / "history.json"
+    path.write_text('{"limit": 5, "sort": 42, "entries": {}, "ignored": []}',
+                    encoding="utf-8")
+
+    loaded = History.load(path)
+
+    assert loaded.sort == "smart"
+    assert not (tmp_path / "history.json.bak").exists()
+
+
 # --- ignore / restore / clear -------------------------------------------------
 
 def test_ignore_removes_the_name_from_the_ranking_and_lists_it():
@@ -294,6 +399,7 @@ def test_saved_file_has_the_documented_shape(tmp_path):
 
     assert json.loads(path.read_text(encoding="utf-8")) == {
         "limit": 20,
+        "sort": "smart",
         "entries": {"a": {"score": 1.0, "last_used": NOW}},
         "ignored": ["b", "e"],
     }
